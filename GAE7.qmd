@@ -1,6 +1,6 @@
 ---
 title: "GAE7"
-author: "Your Name Here"
+author: "Katie Eufemia"
 format: 
   html:
     theme: custom.scss
@@ -26,6 +26,7 @@ knitr::opts_chunk$set(
 
 library(emmeans)
 library(lmerTest)
+library(redres)
 library(effectsize)
 library(car)
 library(ggfortify)
@@ -47,10 +48,13 @@ options(knitr.kable.NA = '')
 Please see @Pintar.etal2018 for greater detail on experimental design and data collection. In brief, the experiment was set up as a 3 X 3 factorial treatment design (9 treatment combinations). The experiment was replicated in 3 separate locations at 3 different times for a total of 9 replicates. This should have resulted in 81 observations total, however some fish died during the experiment rendering those observations not being included in the data resulting in only 69 observations.
 
 ```{r }
-#| label: dataImport
+
 
 df1 <- read_csv("Pintar_etal_2018.csv",
-                show_col_types = FALSE)
+                col_select = c(1:9),
+                show_col_types = FALSE
+                )
+
 
 # Block = 1 to 9 for the 9 spatiotemporal blocks (3 locations X 3 times)
 # Pool = 1 to 9 for the plastic wading pools used for the experiment
@@ -66,20 +70,275 @@ df1 <- read_csv("Pintar_etal_2018.csv",
 # factors so that, by default, polynomial contrasts will be used to compute the
 # ANOVAs.
 
-df1$Nutrient <- factor(df1$Nutrient,
-                       levels = c("0", "4", "8"),
-                       ordered = TRUE)
-
-df1$Fish <- factor(df1$Fish,
-                   levels = c("0", "1", "2"),
-                   ordered = TRUE)
-
 df1$Block <- factor(df1$Block)
 
+df1$Pool <- factor(df1$Pool)
+
+df1$Location <- factor(df1$Location)
+
+df1$Time <- factor(df1$Time)
+
+df1$Nutrient <- factor(df1$Nutrient)
+
+df1$Fish <- factor(df1$Fish)
+
+
+```
+
+```{r}
+#| label: tbl-dataImport
+#| tbl-cap: "First six observations of data provided by @Pintar.etal2018."
+
+colnames(df1) <- tolower(colnames(df1))
+
+
+kbl(
+  head(df1),
+  col.names = c(
+    "Block",
+    "Pool",
+    "Location",
+    "Time",
+    "Nutrient",
+    "Fish",
+    "Culex Egg Rafts",
+    "Hydrophilidae",
+    "Dytiscidae"
+  )
+) |>
+  kable_classic(
+    full = FALSE
+    )
 ```
 
 ### Statistical Methods
 
+The response variable was total number of egg rafts based on the different treatments and varying nutrient availability. The 9 treatments with separate locations and times were considered blocks and the different spatio-temporal blocks were assumed independent. Blocks were also assumed to have normal independent deviance with a mean of zero. The data were analyzed with the blocks as fixed:
+
+$$
+y_{ij} = \mu + \alpha_i + \beta_j + \epsilon_{ij}$$
+
 ## Results
+
+```{r}
+#| label: tbl-Culex
+#| tbl-cap: "Effects of predation and nutrients on Culex."
+#| fig-show: hide
+#| results: hide
+
+CulexFactorial <- lmer(culex_egg_rafts ~ fish*nutrient + (1 | block), data = df1)
+
+CulexAnova <- (anova(CulexFactorial))
+
+kbl(
+  CulexAnova,
+  col.names = c(
+    "SS",
+    "MS",
+    "df1",
+    "df2",
+    "F",
+    "P"
+    ),
+  digits = c(3,3,0,0,3,4)
+  ) |>
+  kable_classic()
+
+HydroFactorial <- lmer(hydrophilidae ~ fish*nutrient + (1 | block), data = df1)
+
+HydroAnova <- (anova(HydroFactorial))
+
+kbl(
+  HydroAnova,
+  col.names = c(
+    "SS",
+    "MS",
+    "df1",
+    "df2",
+    "F",
+    "P"
+    ),
+  digits = c(3,3,0,0,3,4)
+  ) |>
+  kable_classic()
+
+DytisFactorial <- lmer(dytiscidae ~ fish*nutrient + (1 | block), data = df1)
+
+DytisAnova <- (anova(DytisFactorial))
+
+kbl(
+  DytisAnova,
+  col.names = c(
+    "SS",
+    "MS",
+    "df1",
+    "df2",
+    "F",
+    "P"
+    ),
+  digits = c(3,3,0,0,3,4)
+  ) |>
+  kable_classic()
+
+```
+
+```{r}
+#| label: tbl-fixedANOVA
+#| tbl-cap: "ANOVA summary for the data provided by @Pintar.etal2018."
+#| fig-show: hide
+
+kbl(
+  anova(CulexFactorial),
+  digits = c(3,0,3,3)
+  ) |>
+  kable_classic()
+```
+
+```{r}
+#| label: tbl-fixedANOVA2
+#| tbl-cap: "ANOVA summary for the data provided by @Pintar.etal2018."
+#| fig-show: hide
+
+kbl(
+  anova(HydroFactorial),
+  digits = c(3,0,3,3)
+  ) |>
+  kable_classic()
+```
+
+```{r}
+#| label: tbl-fixedANOVA3
+#| tbl-cap: "ANOVA summary for the data provided by @Pintar.etal2018."
+#| fig-show: hide
+
+kbl(
+  anova(DytisFactorial),
+  digits = c(3,0,3,3)
+  ) |>
+  kable_classic()
+```
+
+Because blocks were chosen at random, they should be treated as a random factor.
+
+```{r}
+#| label: tbl-mixedANOVA
+#| tbl-cap: "Linear mixed-effect model results for the data provided by @Pintar.etal2018."
+#| tbl-subcap:
+#|     - "Fixed effect."
+#|     - "Random effect."
+#| layout-nrows: 2
+
+
+CulexMixed <- anova(CulexFactorial)
+
+kbl(
+  CulexMixed,
+  col.names = c(
+    "SS",
+    "MS",
+    "df1",
+    "df2",
+    "F",
+    "P"
+    ),
+  digits = c(3,3,0,0,3,4)
+  ) |>
+  kable_classic()
+
+kbl(
+  rand(CulexFactorial),
+  col.names = c(
+    "Parameters",
+    "log-likelihood",
+    "AIC",
+    "LRT",
+    "df",
+    "P"
+    ),
+  digits = c(0,3,3,3,0,4)
+  )
+```
+
+```{r}
+#| label: tbl-mixedANOVA2
+#| tbl-cap: "Linear mixed-effect model results for the data provided by @Pintar.etal2018."
+#| tbl-subcap:
+#|     - "Fixed effect."
+#|     - "Random effect."
+#| layout-nrows: 2
+
+
+HydroMixed <- anova(HydroFactorial)
+
+kbl(
+  HydroMixed,
+  col.names = c(
+    "SS",
+    "MS",
+    "df1",
+    "df2",
+    "F",
+    "P"
+    ),
+  digits = c(3,3,0,0,3,4)
+  ) |>
+  kable_classic()
+
+kbl(
+  rand(HydroFactorial),
+  col.names = c(
+    "Parameters",
+    "log-likelihood",
+    "AIC",
+    "LRT",
+    "df",
+    "P"
+    ),
+  digits = c(0,3,3,3,0,4)
+  )
+```
+
+```{r}
+#| label: tbl-mixedANOVA3
+#| tbl-cap: "Linear mixed-effect model results for the data provided by @Pintar.etal2018."
+#| tbl-subcap:
+#|     - "Fixed effect."
+#|     - "Random effect."
+#| layout-nrows: 2
+
+
+DytisMixed <- anova(DytisFactorial)
+
+kbl(
+  DytisMixed,
+  col.names = c(
+    "SS",
+    "MS",
+    "df1",
+    "df2",
+    "F",
+    "P"
+    ),
+  digits = c(3,3,0,0,3,4)
+  ) |>
+  kable_classic()
+
+kbl(
+  rand(DytisFactorial),
+  col.names = c(
+    "Parameters",
+    "log-likelihood",
+    "AIC",
+    "LRT",
+    "df",
+    "P"
+    ),
+  digits = c(0,3,3,3,0,4)
+  )
+```
+
+## Discussion
+
+Because of the insignificant difference in Akaike's Information Criterion, there is little difference between the models (@tbl-mixedANOVA, @tbl-mixedANOVA2, @tbl-mixedANOVA3) . The analyses also show that Culex mosquitoes have a significant interaction with nutrients and predator abundance while dytiscid and hydrophilid beetles do not (@tbl-fixedANOVA, @tbl-fixedANOVA2, @tbl-fixedANOVA3).
 
 ## References
